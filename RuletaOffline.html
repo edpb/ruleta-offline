@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sorteo de Smart TV</title>
+  <style>
+    :root {
+      --body-background: #E2C7A3;
+      --panel-background: #121212;
+      --panel-text: #ffffff;
+      --accent-color: #d7ccc8;
+      --pointer-color: #8B4513;
+      --center-background: #121212;
+      --center-border: #5d4037;
+      --button-start: #a1887f;
+      --button-end: #5d4037;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--body-background);
+      color: var(--panel-text);
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* CONTENEDOR IZQUIERDO: RULETA */
+    .left-panel {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      padding: 20px;
+    }
+
+    .wheel-wrapper {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      max-width: 95vh;
+      max-height: 95vh;
+      width: 100%;
+      height: 100%;
+    }
+
+    .pointer {
+      width: 0;
+      height: 0;
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-top: 36px solid var(--pointer-color); /* Marrón para combinar con tono tierra */
+      position: absolute;
+      top: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.8));
+    }
+
+    canvas {
+      border-radius: 50%;
+      box-shadow: 0 0 35px rgba(0, 0, 0, 0.9);
+      max-width: 100%;
+      max-height: 100%;
+      aspect-ratio: 1 / 1;
+    }
+
+    /* CONTENEDOR DERECHO: CONTROLES, LOGO Y TEXTO */
+    .right-panel {
+      width: 440px;
+      min-width: 340px;
+      background-color: var(--panel-background);
+      border-left: 1px solid #282828;
+      padding: 25px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 15px;
+      box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
+      overflow-y: auto;
+    }
+
+    /* Espacio para el logo */
+    .logo-container {
+      width: 100%;
+      height: 250px;
+      /* border: 2px dashed #3a3a3a; */
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #1a1a1a;
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .logo-container img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .logo-placeholder {
+      font-size: 0.85rem;
+      color: #777;
+      text-align: center;
+      padding: 0 10px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      text-align: center;
+      color: var(--accent-color);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      overflow-wrap: anywhere;
+    }
+
+    /* Panel de resultado con transiciones suaves */
+    .result-box {
+      background-color: #1e1e1e;
+      border: 2px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.3s ease;
+    }
+
+    .result-label {
+      font-size: 0.8rem;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 4px;
+    }
+
+    .result-value {
+      font-size: 1.6rem;
+      font-weight: bold;
+      color: var(--accent-color);
+      transition: all 0.3s ease;
+    }
+
+    /* Clase que se activa cuando hay un ganador */
+    .result-box.winner-pop {
+      background: linear-gradient(135deg, #b68758 0%, #5d4037 100%);
+      border-color: #ffd700;
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+      animation: popEffect 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .result-box.winner-pop .result-label {
+      color: #fff8e1;
+      font-weight: bold;
+    }
+
+    .result-box.winner-pop .result-value {
+      color: #ffffff;
+      font-size: 2rem;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    }
+
+    /* Animación de brinco/rebote */
+    @keyframes popEffect {
+      0% { transform: scale(0.85); }
+      50% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    /* Entrada editable de números/elementos */
+    .input-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .input-section label {
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      background-color: #1a1a1a;
+      color: #e0e0e0;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    textarea {
+      flex: 1;
+      min-height: 120px;
+      resize: none;
+      line-height: 1.4;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    textarea:focus {
+      border-color: #8d6e63;
+    }
+
+    .config-panel {
+      border-top: 1px solid #2d2d2d;
+      padding-top: 10px;
+    }
+
+    .config-panel summary {
+      color: var(--accent-color);
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      list-style-position: inside;
+      text-transform: uppercase;
+    }
+
+    .config-content {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .config-row {
+      display: grid;
+      grid-template-columns: 1fr 74px;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .config-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .config-field label {
+      color: #aaa;
+      font-size: 0.78rem;
+    }
+
+    input[type="color"] {
+      width: 74px;
+      height: 39px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .colors-textarea {
+      min-height: 78px;
+      flex: initial;
+    }
+
+    .config-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .config-btn {
+      border: none;
+      border-radius: 8px;
+      color: #ffffff;
+      cursor: pointer;
+      font-weight: 700;
+      padding: 11px 10px;
+      background: #343434;
+      transition: filter 0.2s, transform 0.1s;
+    }
+
+    .config-btn:hover {
+      filter: brightness(1.15);
+    }
+
+    .config-btn:active {
+      transform: scale(0.98);
+    }
+
+    .download-btn {
+      background: linear-gradient(135deg, var(--button-start) 0%, var(--button-end) 100%);
+    }
+
+    /* Botón Girar */
+    .spin-btn {
+      width: 100%;
+      padding: 16px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--button-start) 0%, var(--button-end) 100%);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      transition: transform 0.1s, filter 0.2s;
+    }
+
+    .spin-btn:hover {
+      filter: brightness(1.15);
+    }
+
+    .spin-btn:active {
+      transform: scale(0.98);
+    }
+
+    .spin-btn:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SECCIÓN IZQUIERDA: RULETA -->
+  <div class="left-panel">
+    <div class="wheel-wrapper">
+      <div class="pointer"></div>
+      <canvas id="wheelCanvas" width="800" height="800"></canvas>
+    </div>
+  </div>
+
+  <!-- SECCIÓN DERECHA: LOGO, TÍTULO, LISTA Y BOTÓN -->
+  <div class="right-panel">
+    
+    <!-- Espacio para Logo (Haz clic para subir una imagen o arrástrala) -->
+    <div class="logo-container" onclick="document.getElementById('logoInput').click()">
+      <span class="logo-placeholder" id="logoPlaceholder">Haz clic aquí para cargar tu LOGO</span>
+      <img id="logoImage" style="display: none;" alt="Logo" />
+      <input type="file" id="logoInput" accept="image/*" style="display: none;" onchange="loadLogo(event)">
+    </div>
+
+    <h1 id="raffleTitle">Ruleta Descargable</h1>
+
+    <div class="result-box">
+      <div class="result-label">Último Ganador</div>
+      <div id="result" class="result-value">---</div>
+    </div>
+
+    <details class="config-panel" open>
+      <summary>Configurar rifa</summary>
+      <div class="config-content">
+        <div class="config-field">
+          <label for="titleInput">Título de la rifa</label>
+          <input type="text" id="titleInput" oninput="updateTitleConfig()">
+        </div>
+
+        <div class="config-field">
+          <label for="centerTextInput">Mensaje al centro de la ruleta</label>
+          <input type="text" id="centerTextInput" oninput="updateCenterTextConfig()">
+        </div>
+
+        <div class="config-row">
+          <div class="config-field">
+            <label for="bodyBgInput">Fondo de la página</label>
+            <input type="text" id="bodyBgInput" oninput="syncColorText('bodyBgColor', this.value); updateThemeConfig()">
+          </div>
+          <input type="color" id="bodyBgColor" oninput="syncColorText('bodyBgInput', this.value); updateThemeConfig()">
+        </div>
+
+        <div class="config-row">
+          <div class="config-field">
+            <label for="panelBgInput">Fondo del panel</label>
+            <input type="text" id="panelBgInput" oninput="syncColorText('panelBgColor', this.value); updateThemeConfig()">
+          </div>
+          <input type="color" id="panelBgColor" oninput="syncColorText('panelBgInput', this.value); updateThemeConfig()">
+        </div>
+
+        <div class="config-row">
+          <div class="config-field">
+            <label for="accentInput">Color principal de texto</label>
+            <input type="text" id="accentInput" oninput="syncColorText('accentColor', this.value); updateThemeConfig()">
+          </div>
+          <input type="color" id="accentColor" oninput="syncColorText('accentInput', this.value); updateThemeConfig()">
+        </div>
+
+        <div class="config-row">
+          <div class="config-field">
+            <label for="pointerInput">Color del puntero</label>
+            <input type="text" id="pointerInput" oninput="syncColorText('pointerColor', this.value); updateThemeConfig()">
+          </div>
+          <input type="color" id="pointerColor" oninput="syncColorText('pointerInput', this.value); updateThemeConfig()">
+        </div>
+
+        <div class="config-field">
+          <label for="wheelColorsInput">Colores de los elementos (uno por línea)</label>
+          <textarea id="wheelColorsInput" class="colors-textarea" oninput="updateWheelColors()"></textarea>
+        </div>
+
+        <div class="config-row">
+          <div class="config-field">
+            <label for="itemCountInput">Cantidad de elementos</label>
+            <input type="number" id="itemCountInput" min="1" max="500" step="1">
+          </div>
+          <button class="config-btn" type="button" onclick="applyItemCount()">Aplicar</button>
+        </div>
+
+        <div class="config-actions">
+          <button class="config-btn" type="button" onclick="resetWinner()">Limpiar ganador</button>
+          <button class="config-btn download-btn" type="button" onclick="downloadConfiguredHtml()">Descargar HTML</button>
+        </div>
+      </div>
+    </details>
+
+    <div class="input-section">
+      <label for="itemsInput">Elementos (uno por línea):</label>
+      <textarea id="itemsInput" oninput="updateWheel()"></textarea>
+    </div>
+
+    <button id="spinBtn" class="spin-btn" onclick="spin()">GIRAR</button>
+  </div>
+
+  <script id="initialState" type="application/json">
+    {
+      "title": "Ruleta Descargable",
+      "centerText": "Texto editable",
+      "bodyBackground": "#E2C7A3",
+      "panelBackground": "#121212",
+      "panelText": "#ffffff",
+      "accentColor": "#d7ccc8",
+      "pointerColor": "#8B4513",
+      "centerBackground": "#121212",
+      "centerBorder": "#5d4037",
+      "buttonStart": "#a1887f",
+      "buttonEnd": "#5d4037",
+      "wheelColors": ["#a07855", "#8d6e63", "#b68758", "#6d4c41", "#a1887f"],
+      "items": null,
+      "logoSrc": ""
+    }
+  </script>
+
+  <script>
+    const canvas = document.getElementById('wheelCanvas');
+    const ctx = canvas.getContext('2d');
+    const resultDiv = document.getElementById('result');
+    const spinBtn = document.getElementById('spinBtn');
+
+    let currentAngle = 0;
+    let isSpinning = false;
+    let logoDataUrl = '';
+
+    const defaultConfig = {
+      title: 'Ruleta Descargable',
+      centerText: 'Texto editable',
+      bodyBackground: '#E2C7A3',
+      panelBackground: '#121212',
+      panelText: '#ffffff',
+      accentColor: '#d7ccc8',
+      pointerColor: '#8B4513',
+      centerBackground: '#121212',
+      centerBorder: '#5d4037',
+      buttonStart: '#a1887f',
+      buttonEnd: '#5d4037',
+      wheelColors: ['#a07855', '#8d6e63', '#b68758', '#6d4c41', '#a1887f'],
+      items: null,
+      logoSrc: ''
+    };
+
+    let appConfig = loadInitialState();
+    let items = appConfig.items || Array.from({length: 25}, (_, i) => `Elemento ${i + 1}`);
+
+    function loadInitialState() {
+      const stateElement = document.getElementById('initialState');
+      if (!stateElement) return {...defaultConfig};
+
+      try {
+        const savedConfig = JSON.parse(stateElement.textContent);
+        return {
+          ...defaultConfig,
+          ...savedConfig,
+          wheelColors: Array.isArray(savedConfig.wheelColors) && savedConfig.wheelColors.length
+            ? savedConfig.wheelColors
+            : defaultConfig.wheelColors
+        };
+      } catch (error) {
+        return {...defaultConfig};
+      }
+    }
+
+    function setCssVar(name, value) {
+      document.documentElement.style.setProperty(name, value);
+    }
+
+    function applyTheme() {
+      setCssVar('--body-background', appConfig.bodyBackground);
+      setCssVar('--panel-background', appConfig.panelBackground);
+      setCssVar('--panel-text', appConfig.panelText);
+      setCssVar('--accent-color', appConfig.accentColor);
+      setCssVar('--pointer-color', appConfig.pointerColor);
+      setCssVar('--center-background', appConfig.centerBackground);
+      setCssVar('--center-border', appConfig.centerBorder);
+      setCssVar('--button-start', appConfig.buttonStart);
+      setCssVar('--button-end', appConfig.buttonEnd);
+      document.querySelector('.pointer').style.borderTopColor = appConfig.pointerColor;
+      drawWheel();
+    }
+
+    function applyConfigToForm() {
+      document.title = appConfig.title;
+      document.getElementById('raffleTitle').textContent = appConfig.title;
+      document.getElementById('titleInput').value = appConfig.title;
+      document.getElementById('centerTextInput').value = appConfig.centerText;
+      setColorControl('bodyBg', appConfig.bodyBackground);
+      setColorControl('panelBg', appConfig.panelBackground);
+      setColorControl('accent', appConfig.accentColor);
+      setColorControl('pointer', appConfig.pointerColor);
+      document.getElementById('wheelColorsInput').value = appConfig.wheelColors.join('\n');
+      document.getElementById('itemsInput').value = items.join('\n');
+      document.getElementById('itemCountInput').value = items.length;
+      logoDataUrl = appConfig.logoSrc || '';
+
+      if (logoDataUrl) {
+        const img = document.getElementById('logoImage');
+        img.src = logoDataUrl;
+        img.style.display = 'block';
+        document.getElementById('logoPlaceholder').style.display = 'none';
+      }
+    }
+
+    function setColorControl(prefix, value) {
+      const textInput = document.getElementById(`${prefix}Input`);
+      const colorInput = document.getElementById(`${prefix}Color`);
+      if (textInput) textInput.value = value;
+      if (colorInput && isHexColor(value)) colorInput.value = normalizeHex(value);
+    }
+
+    function isHexColor(value) {
+      return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim());
+    }
+
+    function normalizeHex(value) {
+      const hex = value.trim();
+      if (hex.length === 4) {
+        return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`.toLowerCase();
+      }
+      return hex.toLowerCase();
+    }
+
+    function syncColorText(targetId, value) {
+      const target = document.getElementById(targetId);
+      if (!target || !isHexColor(value)) return;
+      target.value = normalizeHex(value);
+    }
+
+    function updateTitleConfig() {
+      const title = document.getElementById('titleInput').value.trim() || 'Ruleta Descargable';
+      appConfig.title = title;
+      document.title = title;
+      document.getElementById('raffleTitle').textContent = title;
+    }
+
+    function updateCenterTextConfig() {
+      appConfig.centerText = document.getElementById('centerTextInput').value.trim() || 'SUERTE';
+      drawWheel();
+    }
+
+    function updateThemeConfig() {
+      appConfig.bodyBackground = getColorValue('bodyBgInput', appConfig.bodyBackground);
+      appConfig.panelBackground = getColorValue('panelBgInput', appConfig.panelBackground);
+      appConfig.accentColor = getColorValue('accentInput', appConfig.accentColor);
+      appConfig.pointerColor = getColorValue('pointerInput', appConfig.pointerColor);
+      applyTheme();
+    }
+
+    function getColorValue(inputId, fallback) {
+      const value = document.getElementById(inputId).value.trim();
+      return isHexColor(value) ? normalizeHex(value) : fallback;
+    }
+
+    function updateWheelColors() {
+      const colors = document.getElementById('wheelColorsInput').value
+        .split('\n')
+        .map(color => color.trim())
+        .filter(isHexColor)
+        .map(normalizeHex);
+
+      if (colors.length > 0) {
+        appConfig.wheelColors = colors;
+        drawWheel();
+      }
+    }
+
+    function applyItemCount() {
+      const countInput = document.getElementById('itemCountInput');
+      const count = Math.max(1, Math.min(500, parseInt(countInput.value, 10) || 1));
+      const nextItems = items.slice(0, count);
+
+      for (let i = nextItems.length; i < count; i++) {
+        nextItems.push(`Elemento ${i + 1}`);
+      }
+
+      items = nextItems;
+      countInput.value = items.length;
+      document.getElementById('itemsInput').value = items.join('\n');
+      drawWheel();
+    }
+
+    function updateWheel() {
+      const text = document.getElementById('itemsInput').value;
+      items = text.split('\n').map(item => item.trim()).filter(item => item.length > 0);
+      document.getElementById('itemCountInput').value = items.length;
+      drawWheel();
+    }
+
+    function drawWheel() {
+      const numSegments = items.length;
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = canvas.width / 2 - 15;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (numSegments === 0) return;
+
+      const arcSize = (2 * Math.PI) / numSegments;
+
+      for (let i = 0; i < numSegments; i++) {
+        const angle = currentAngle + i * arcSize;
+
+        // Dibujar segmento
+        ctx.beginPath();
+        ctx.fillStyle = appConfig.wheelColors[i % appConfig.wheelColors.length];
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, angle, angle + arcSize);
+        ctx.lineTo(centerX, centerY);
+        ctx.fill();
+        
+        // Borde oscuro entre divisiones
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Dibujar texto
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.translate(centerX, centerY);
+        ctx.rotate(angle + arcSize / 2);
+        ctx.textAlign = 'right';
+        
+        // Ajuste inteligente de tamaño de letra según el número de casillas
+        const fontSize = Math.max(9, Math.min(15, 380 / numSegments));
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        
+        ctx.fillText(items[i], radius - 20, fontSize / 3);
+        ctx.restore();
+      }
+
+      // Centro decorativo de la ruleta (Círculo central ampliado)
+      const centerRadius = 140; // Cambia este valor si lo quieres aún más grande o más chico
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, centerRadius, 0, 2 * Math.PI);
+      ctx.fillStyle = appConfig.centerBackground;
+      ctx.fill();
+      ctx.strokeStyle = appConfig.centerBorder;
+      ctx.lineWidth = 6; // Borde un poco más grueso para que resalte
+      ctx.stroke();
+
+      // OPCIONAL: Agregar un texto o detalle en el centro vacante
+      ctx.fillStyle = appConfig.accentColor;
+      ctx.font = 'bold 18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(appConfig.centerText, centerX, centerY);
+    }
+
+    function spin() {
+      if (isSpinning || items.length === 0) return;
+
+      isSpinning = true;
+      spinBtn.disabled = true;
+
+      // Limpiar clase de ganador previo y mostrar estado de giro
+      const resultBox = document.querySelector('.result-box');
+      resultBox.classList.remove('winner-pop');
+      resultDiv.textContent = 'GIRANDO...';
+
+      // Giro de 5 a 8 vueltas aleatorias + ángulo final
+      const totalDegrees = 360 * 4 + Math.floor(Math.random() * 360);
+      const totalRotation = (totalDegrees * Math.PI) / 180;
+
+      const duration = 8000; // 8 segundos
+      const start = performance.now();
+      const startAngle = currentAngle;
+
+      function animate(time) {
+        const elapsed = time - start;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        const easeOut = 1 - Math.pow(1 - progress, 4);
+        
+        currentAngle = startAngle + totalRotation * easeOut;
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          isSpinning = false;
+          spinBtn.disabled = false;
+          calculateWinner();
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    function calculateWinner() {
+      const numSegments = items.length;
+      const arcSize = (2 * Math.PI) / numSegments;
+      
+      let normalizedAngle = (1.5 * Math.PI - currentAngle) % (2 * Math.PI);
+      if (normalizedAngle < 0) normalizedAngle += 2 * Math.PI;
+
+      const winningIndex = Math.floor(normalizedAngle / arcSize);
+      
+      // Mostrar el ganador en texto
+      resultDiv.textContent = `🎉 ¡${items[winningIndex]}!`;
+
+      // Activar el resaltado visual
+      const resultBox = document.querySelector('.result-box');
+      resultBox.classList.add('winner-pop');
+    }
+
+    function resetWinner() {
+      resultDiv.textContent = '---';
+      document.querySelector('.result-box').classList.remove('winner-pop');
+    }
+
+    // Cargar imagen de logo localmente
+    function loadLogo(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = document.getElementById('logoImage');
+          logoDataUrl = e.target.result;
+          img.src = logoDataUrl;
+          img.style.display = 'block';
+          document.getElementById('logoPlaceholder').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function getCurrentState() {
+      updateTitleConfig();
+      updateCenterTextConfig();
+      updateThemeConfig();
+      updateWheelColors();
+
+      return {
+        ...appConfig,
+        items: [...items],
+        logoSrc: logoDataUrl
+      };
+    }
+
+    function downloadConfiguredHtml() {
+      const state = getCurrentState();
+      const clone = document.documentElement.cloneNode(true);
+
+      clone.querySelector('title').textContent = state.title;
+      clone.querySelector('#raffleTitle').textContent = state.title;
+      clone.querySelector('#titleInput').setAttribute('value', state.title);
+      clone.querySelector('#centerTextInput').setAttribute('value', state.centerText);
+      clone.querySelector('#itemsInput').textContent = state.items.join('\n');
+      clone.querySelector('#wheelColorsInput').textContent = state.wheelColors.join('\n');
+      clone.querySelector('#itemCountInput').setAttribute('value', state.items.length);
+      clone.querySelector('#initialState').textContent = `\n    ${serializeState(state)}\n  `;
+
+      setCloneColor(clone, 'bodyBg', state.bodyBackground);
+      setCloneColor(clone, 'panelBg', state.panelBackground);
+      setCloneColor(clone, 'accent', state.accentColor);
+      setCloneColor(clone, 'pointer', state.pointerColor);
+
+      const logoImage = clone.querySelector('#logoImage');
+      const logoPlaceholder = clone.querySelector('#logoPlaceholder');
+      if (state.logoSrc) {
+        logoImage.setAttribute('src', state.logoSrc);
+        logoImage.setAttribute('style', 'display: block;');
+        logoPlaceholder.setAttribute('style', 'display: none;');
+      } else {
+        logoImage.setAttribute('src', '');
+        logoImage.setAttribute('style', 'display: none;');
+        logoPlaceholder.removeAttribute('style');
+      }
+
+      const html = `<!DOCTYPE html>\n${clone.outerHTML}`;
+      const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+      const link = document.createElement('a');
+      const safeTitle = state.title
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase() || 'ruleta';
+
+      link.href = URL.createObjectURL(blob);
+      link.download = `${safeTitle}.html`;
+      document.body.appendChild(link);
+      link.click();
+      URL.revokeObjectURL(link.href);
+      link.remove();
+    }
+
+    function setCloneColor(clone, prefix, value) {
+      clone.querySelector(`#${prefix}Input`).setAttribute('value', value);
+      clone.querySelector(`#${prefix}Color`).setAttribute('value', value);
+    }
+
+    function serializeState(state) {
+      return JSON.stringify(state, null, 2)
+        .replace(/<\//g, '<\\/')
+        .replace(/<!--/g, '<\\!--');
+    }
+
+    // Render inicial
+    applyConfigToForm();
+    applyTheme();
+    drawWheel();
+  </script>
+</body>
+</html>
